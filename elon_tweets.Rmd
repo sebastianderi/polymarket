@@ -74,12 +74,56 @@ weekly_tweets
 min(elon$date)
 max(elon$date)
 ```
-# Weekly Tweet, Quantiles
+# Weekly Tweets, Quantiles
 
 ```{r}
 quantile(x = weekly_tweets$n,
          probs = c(0.01, 0.025, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.975, 0.99))
 ```
+# Weekly Tweets, "Reverse Quantiles" (based on Polymarket cuts)
+
+method from here: https://stat.ethz.ch/pipermail/r-help/2012-March/305368.html
+
+```{r}
+ecdf(weekly_tweets$n)(c(49, 50, 59, 60, 69, 70, 79, 80))
+```
+get probability of falling in various ranges
+
+```{r}
+# historical averages
+print("HISTORICAL AVERAGES")
+# 49 or less
+print(paste0("49 or less: ", round(ecdf(weekly_tweets$n)(49), 2)))
+
+# 50 to 59
+print(paste0("50 to 59: ", round(ecdf(weekly_tweets$n)(59) - ecdf(weekly_tweets$n)(50), 2)))
+
+# 60 to 69
+print(paste0("60 to 69: ", round(ecdf(weekly_tweets$n)(69) - ecdf(weekly_tweets$n)(60), 2)))
+
+# 70 to 79
+print(paste0("70 to 79: ", round(ecdf(weekly_tweets$n)(79) - ecdf(weekly_tweets$n)(70), 2)))
+
+# 80 or more
+print(paste0("80 or more: ", round(1 - ecdf(weekly_tweets$n)(80), 2)))
+print("-----------------")
+
+# current prices
+print("CURRENT PRICES")
+print("49 or less: $0.25")
+print("50 to 59: $0.25")
+print("60 to 69: $0.21")
+print("70 to 79: $0.14")
+print("80 or more: $0.15")
+
+```
+
+inspect ecdf
+
+```{r}
+ecdf(weekly_tweets$n)
+```
+
 
 # Weekly Tweets, Graph (basic)
 
@@ -179,21 +223,6 @@ weekly_tweets %>%
 
 ```
 
-# histogram (percentile overlay)
-
-```{r, fig.height=6, fig.width=12}
-weekly_tweets %>% 
-  ggplot(aes(x = n)) +
-  geom_density() +
-  scale_x_continuous(breaks = seq(0, 160, 5)) +
-  scale_y_continuous(breaks = seq(0, 1, 0.001)) +
-  labs(title = "Distribution of Tweeks per Week (@elonmusk)",
-       x = "Weekly Tweet Count",
-       y = "Proportion of Observations") +
-  theme_bw() +
-  theme(plot.title = element_text(hjust = 0.5))
-
-```
 
 # MISC/END
 
