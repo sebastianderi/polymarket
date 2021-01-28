@@ -1,0 +1,182 @@
+---
+title: "elon_tweets"
+output: html_document
+---
+
+# Settings
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Packages
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(readxl)
+```
+
+# Load Data
+
+Downloaded tweets from here: https://www.vicinitas.io/free-tools/download-user-tweets
+
+```{r}
+elon_raw <- read_excel("@elonmusk_user_tweets.xlsx")
+```
+
+# View Data
+
+```{r}
+View(elon_raw)
+```
+
+
+# Shape Data
+
+See documentation on how exactly a week is calculated
+
+```{r}
+elon <-
+elon_raw %>% 
+  select(UTC, `Tweet Id`, Text) %>%
+  rename("tweet_id" = `Tweet Id`) %>%
+  mutate(date = ymd_hms(UTC)) %>% 
+  arrange(date) %>% 
+  mutate(year = year(date),
+         month = month(date, label = TRUE),
+         week = week(date),
+         day = wday(date, label = TRUE)) %>% 
+  select(date, year, month, week, day, everything()) %>% 
+  filter(!(week == 4 & year == 2021), # filter out unfinished weeks (this week, last week of 2020, first week in data set)
+         !(week == 12 & year == 2020),
+         !(week == 53 & year == 2020)) # filter out unfinished weeks
+  
+elon
+```
+
+
+# Tweets Per Week
+
+```{r}
+weekly_tweets <-
+elon %>% 
+  group_by(year, week) %>% 
+  count(year, week)
+
+weekly_tweets
+
+```
+
+# Check Time frame
+
+```{r}
+min(elon$date)
+max(elon$date)
+```
+# Weekly Tweet, Quantiles
+
+```{r}
+quantile(x = weekly_tweets$n,
+         probs = c(0.01, 0.025, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.975, 0.99))
+```
+
+# Weekly Tweets, Graph (basic)
+
+```{r, fig.height=6, fig.width=12}
+weekly_tweets %>% 
+  ggplot(aes(x = week,
+             y = n,
+             color = as.factor(year))) +
+  geom_point(size = 2) +
+  geom_line(size = 1.25,
+            alpha = 0.5) +
+  theme_bw() +
+  labs(title = "Tweets per Week (@elonmusk)",
+       x = "Week of the Year",
+       y = "Number of Tweets",
+       color = "Year") +
+  scale_x_continuous(breaks = seq(0, 52, 1)) +
+  scale_y_continuous(breaks = seq(0, 160, 5)) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+# Weekly Tweets, Graph (percentile overlay)
+
+
+```{r, fig.height=6, fig.width=12}
+
+weekly_tweets %>% 
+  ggplot(aes(x = week,
+             y = n,
+             color = as.factor(year))) +
+  geom_point(size = 2) +
+  geom_line(size = 1.25,
+            alpha = 0.5) +
+  theme_bw() +
+  labs(title = "Tweets per Week (@elonmusk)",
+       x = "Week of the Year",
+       y = "Number of Tweets",
+       color = "Year") +
+  scale_x_continuous(breaks = seq(0, 52, 1)) +
+  scale_y_continuous(breaks = seq(0, 160, 5)) +
+  geom_hline(yintercept = quantile(weekly_tweets$n, probs = c(0.01, 0.10, 0.25, 0.50, 0.75, 0.90, 0.99)),
+             linetype = c("dotted", "dotted", "dotted", "solid", "dotted", "dotted", "dotted")) +
+  annotate("text", y = quantile(weekly_tweets$n, probs = 0.01) + 3, x = 8, label = "1st percentile", size = 3.5) +
+  annotate("text", y = quantile(weekly_tweets$n, probs = 0.10) + 3, x = 8, label = "10th percentile", size = 3.5) +
+  annotate("text", y = quantile(weekly_tweets$n, probs = 0.25) + 3, x = 8, label = "25th percentile", size = 3.5) +
+  annotate("text", y = quantile(weekly_tweets$n, probs = 0.50) + 3, x = 8, label = "50th percentile (median)", size = 3.5) +
+  annotate("text", y = quantile(weekly_tweets$n, probs = 0.75) + 3, x = 8, label = "75th percentile", size = 3.5) +
+  annotate("text", y = quantile(weekly_tweets$n, probs = 0.90) + 3, x = 8, label = "90th percentile", size = 3.5) +
+  annotate("text", y = quantile(weekly_tweets$n, probs = 0.99) + 3, x = 8, label = "99th percentile", size = 3.5) +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+
+```
+
+# histogram (basic)
+
+```{r, fig.height=6, fig.width=12}
+weekly_tweets %>% 
+  ggplot(aes(x = n)) +
+  geom_density(size = 2) +
+  scale_x_continuous(breaks = seq(0, 160, 5)) +
+  scale_y_continuous(breaks = seq(0, 1, 0.001)) +
+  labs(title = "Distribution of Tweeks per Week (@elonmusk)",
+       x = "Weekly Tweet Count",
+       y = "Proportion of Observations") +
+  geom_vline(xintercept = quantile(weekly_tweets$n, probs = c(0.01, 0.10, 0.25, 0.50, 0.75, 0.90, 0.99)),
+             linetype = c("dotted", "dotted", "dotted", "solid", "dotted", "dotted", "dotted")) +
+  annotate("text", x = quantile(weekly_tweets$n, probs = 0.01) + 1, y = 0.004, label = "1st percentile", size = 3.5, angle = 90) +
+  annotate("text", x = quantile(weekly_tweets$n, probs = 0.10) + 1, y = 0.004, label = "10th percentile)", size = 3.5, angle = 90) +
+  annotate("text", x = quantile(weekly_tweets$n, probs = 0.25) + 1, y = 0.004, label = "25th percentile", size = 3.5, angle = 90) +
+  annotate("text", x = quantile(weekly_tweets$n, probs = 0.50) + 1, y = 0.004, label = "50th percentile (median)", size = 3.5, angle = 90) +
+  annotate("text", x = quantile(weekly_tweets$n, probs = 0.75) + 1, y = 0.004, label = "75th percentile", size = 3.5, angle = 90) +
+  annotate("text", x = quantile(weekly_tweets$n, probs = 0.90) + 1, y = 0.004, label = "90th percentile", size = 3.5, angle = 90) +
+  annotate("text", x = quantile(weekly_tweets$n, probs = 0.99) + 1, y = 0.004, label = "99th percentile", size = 3.5, angle = 90) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+# histogram (percentile overlay)
+
+```{r, fig.height=6, fig.width=12}
+weekly_tweets %>% 
+  ggplot(aes(x = n)) +
+  geom_density() +
+  scale_x_continuous(breaks = seq(0, 160, 5)) +
+  scale_y_continuous(breaks = seq(0, 1, 0.001)) +
+  labs(title = "Distribution of Tweeks per Week (@elonmusk)",
+       x = "Weekly Tweet Count",
+       y = "Proportion of Observations") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+# MISC/END
+
