@@ -1,0 +1,517 @@
+---
+title: "elon_tweets"
+output: html_document
+---
+
+# Settings
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Packages
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(readxl)
+```
+
+# Load Data
+
+Downloaded tweets from here: https://www.vicinitas.io/free-tools/download-user-tweets
+
+```{r}
+tweets_raw <- read_excel("@MCuban_user_tweets.xlsx")
+```
+
+# View Data
+
+```{r}
+View(tweets_raw)
+```
+
+
+# Shape Data
+
+See documentation on how exactly a week is calculated
+
+```{r}
+tweets<-
+tweets_raw %>% 
+  select(UTC, `Tweet Id`, Text) %>%
+  rename("tweet_id" = `Tweet Id`) %>%
+  mutate(date = ymd_hms(UTC)) %>% 
+  arrange(date) %>% 
+  mutate(year = year(date),
+         month = month(date, label = TRUE),
+         week = week(date),
+         day = wday(date, label = TRUE)) %>% 
+  select(date, year, month, week, day, everything()) %>% 
+  filter(!(week == 4 & year == 2021), # filter out unfinished weeks (this week, last week of 2020, first week in data set)
+         !(week == 12 & year == 2020),
+         !(week == 53 & year == 2020)) # filter out unfinished weeks
+  
+tweets
+```
+
+
+# Tweets Per Week
+
+```{r}
+weekly_tweets <-
+tweets %>% 
+  group_by(year, week) %>% 
+  count(year, week)
+
+weekly_tweets
+
+```
+
+# Check Time frame
+
+```{r}
+min(tweets$date)
+max(tweets$date)
+```
+# Weekly Tweets, Quantiles
+
+```{r}
+quantile(x = weekly_tweets$n,
+         probs = c(0.01, 0.025, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.975, 0.99))
+```
+# Weekly Tweets, Quantiles (2020)
+
+```{r}
+quantile(x = weekly_tweets[weekly_tweets$year==2020,]$n,
+         probs = c(0.01, 0.025, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.975, 0.99),
+         na.rm = TRUE)
+```
+
+# Weekly Tweets, Quantiles (2021)
+
+```{r}
+quantile(x = weekly_tweets[weekly_tweets$year==2021,]$n,
+         probs = c(0.01, 0.025, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.975, 0.99),
+         na.rm = TRUE)
+```
+
+# Weekly Tweets, "Reverse Quantiles" (based on Polymarket cuts)
+
+method from here: https://stat.ethz.ch/pipermail/r-help/2012-March/305368.html
+
+```{r}
+ecdf(weekly_tweets$n)(c(49, 50, 59, 60, 69, 70, 79, 80))
+```
+# Weekly Tweets, "Reverse Quantiles" just 2020 (based on Polymarket cuts)
+
+method from here: https://stat.ethz.ch/pipermail/r-help/2012-March/305368.html
+
+```{r}
+ecdf(weekly_tweets[weekly_tweets$year==2020,]$n)(c(30, 30, 39, 40, 49, 50, 59, 60, 69, 70))
+```
+
+
+get probability of falling in various ranges
+
+```{r}
+# historical averages
+print("HISTORICAL AVERAGES")
+# 49 or less
+print(paste0("29 or less: ", round(ecdf(weekly_tweets$n)(29), 2)))
+
+# 50 to 59
+print(paste0("30 to 39: ", round(ecdf(weekly_tweets$n)(39) - ecdf(weekly_tweets$n)(30), 2)))
+
+# 60 to 69
+print(paste0("40 to 49: ", round(ecdf(weekly_tweets$n)(49) - ecdf(weekly_tweets$n)(40), 2)))
+
+# 70 to 79
+print(paste0("50 to 59: ", round(ecdf(weekly_tweets$n)(59) - ecdf(weekly_tweets$n)(50), 2)))
+
+# 70 to 79
+print(paste0("60 to 69: ", round(ecdf(weekly_tweets$n)(69) - ecdf(weekly_tweets$n)(60), 2)))
+
+# 80 or more
+print(paste0("70 or more: ", round(1 - ecdf(weekly_tweets$n)(70), 2)))
+print("-----------------")
+
+# current prices
+print("CURRENT PRICES (feb 2, 12:21 am")
+print("29 or less: $0.19")
+print("30 to 39: $0.24")
+print("40 to 49: $0.18")
+print("50 to 59: $0.14")
+print("60 to 69: $0.11")
+print("80 or more: $0.14")
+
+```
+
+get probability of falling in various ranges (JUST 2020)
+
+```{r}
+weekly_tweets_2020 <- weekly_tweets[weekly_tweets$year==2020,]
+
+# historical averages
+print("HISTORICAL AVERAGES, JUST 2020")
+# 49 or less
+print(paste0("29 or less: ", round(ecdf(weekly_tweets_2020$n)(29), 2)))
+
+# 50 to 59
+print(paste0("30 to 39: ", round(ecdf(weekly_tweets_2020$n)(39) - ecdf(weekly_tweets_2020$n)(30), 2)))
+
+# 60 to 69
+print(paste0("40 to 49: ", round(ecdf(weekly_tweets_2020$n)(49) - ecdf(weekly_tweets_2020$n)(40), 2)))
+
+# 70 to 79
+print(paste0("50 to 59: ", round(ecdf(weekly_tweets_2020$n)(59) - ecdf(weekly_tweets_2020$n)(50), 2)))
+
+# 70 to 79
+print(paste0("60 to 69: ", round(ecdf(weekly_tweets_2020$n)(69) - ecdf(weekly_tweets_2020$n)(60), 2)))
+
+# 80 or more
+print(paste0("70 or more: ", round(1 - ecdf(weekly_tweets_2020$n)(70), 2)))
+print("-----------------")
+
+# current prices
+print("CURRENT PRICES (feb 2, 12:21 am)")
+print("29 or less: $0.19")
+print("30 to 39: $0.24")
+print("40 to 49: $0.18")
+print("50 to 59: $0.14")
+print("60 to 69: $0.11")
+print("80 or more: $0.14")
+
+```
+
+get probability of falling in various ranges (specific range in 2020-2021)
+
+```{r}
+weekly_tweets_2020s <- weekly_tweets[weekly_tweets$year==2021 | (weekly_tweets$year==2020 & weekly_tweets$week >= 41),]
+
+# historical averages
+print("HISTORICAL AVERAGES, tail of 2020-2021")
+# 49 or less
+print(paste0("29 or less: ", round(ecdf(weekly_tweets_2020s$n)(29), 2)))
+
+# 50 to 59
+print(paste0("30 to 39: ", round(ecdf(weekly_tweets_2020s$n)(39) - ecdf(weekly_tweets_2020s$n)(30), 2)))
+
+# 60 to 69
+print(paste0("40 to 49: ", round(ecdf(weekly_tweets_2020s$n)(49) - ecdf(weekly_tweets_2020s$n)(40), 2)))
+
+# 70 to 79
+print(paste0("50 to 59: ", round(ecdf(weekly_tweets_2020s$n)(59) - ecdf(weekly_tweets_2020s$n)(50), 2)))
+
+# 70 to 79
+print(paste0("60 to 69: ", round(ecdf(weekly_tweets_2020s$n)(69) - ecdf(weekly_tweets_2020s$n)(60), 2)))
+
+# 80 or more
+print(paste0("70 or more: ", round(1 - ecdf(weekly_tweets_2020s$n)(70), 2)))
+print("-----------------")
+
+# current prices
+print("CURRENT PRICES (feb 2, 12:21 am)")
+print("29 or less: $0.19")
+print("30 to 39: $0.24")
+print("40 to 49: $0.18")
+print("50 to 59: $0.14")
+print("60 to 69: $0.11")
+print("80 or more: $0.14")
+
+```
+get probability of falling in various ranges (specific range in 2019-2021)
+
+```{r}
+weekly_tweets_2020s2 <- weekly_tweets[weekly_tweets$year==2021 | (weekly_tweets$year==2020 & weekly_tweets$week >= 41) | 
+                                       (weekly_tweets$year==2019 & weekly_tweets$week >= 41),]
+
+# historical averages
+print("HISTORICAL AVERAGES, tails of 2019, 2020 and start of 2021")
+# 49 or less
+print(paste0("29 or less: ", round(ecdf(weekly_tweets_2020s2$n)(29), 2)))
+
+# 50 to 59
+print(paste0("30 to 39: ", round(ecdf(weekly_tweets_2020s2$n)(39) - ecdf(weekly_tweets_2020s2$n)(30), 2)))
+
+# 60 to 69
+print(paste0("40 to 49: ", round(ecdf(weekly_tweets_2020s2$n)(49) - ecdf(weekly_tweets_2020s2$n)(40), 2)))
+
+# 70 to 79
+print(paste0("50 to 59: ", round(ecdf(weekly_tweets_2020s2$n)(59) - ecdf(weekly_tweets_2020s2$n)(50), 2)))
+
+# 70 to 79
+print(paste0("60 to 69: ", round(ecdf(weekly_tweets_2020s2$n)(69) - ecdf(weekly_tweets_2020s2$n)(60), 2)))
+
+# 80 or more
+print(paste0("70 or more: ", round(1 - ecdf(weekly_tweets_2020s2$n)(70), 2)))
+print("-----------------")
+
+# current prices
+print("CURRENT PRICES (feb 2, 12:21 am)")
+print("29 or less: $0.19")
+print("30 to 39: $0.24")
+print("40 to 49: $0.18")
+print("50 to 59: $0.14")
+print("60 to 69: $0.11")
+print("80 or more: $0.14")
+
+```
+
+inspect ecdf
+
+```{r}
+ecdf(weekly_tweets$n)
+```
+
+
+# Weekly Tweets, Graph (basic)
+
+```{r, fig.height=6, fig.width=12}
+weekly_tweets %>% 
+  ggplot(aes(x = week,
+             y = n,
+             color = as.factor(year))) +
+  geom_point(size = 2) +
+  geom_line(size = 1.25,
+            alpha = 0.5) +
+  theme_bw() +
+  labs(title = "Tweets per Week (@MCuban)",
+       x = "Week of the Year",
+       y = "Number of Tweets",
+       color = "Year") +
+  scale_x_continuous(breaks = seq(0, 52, 1)) +
+  scale_y_continuous(breaks = seq(0, 160, 5)) +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.minor = element_blank())
+
+```
+
+# Weekly Tweets, Graph (facet by year)
+
+```{r, fig.height=10, fig.width=15}
+weekly_tweets %>% 
+  ggplot(aes(x = week,
+             y = n,
+             color = as.factor(year))) +
+  geom_point(size = 2) +
+  geom_line(size = 1.25,
+            alpha = 0.5) +
+  theme_bw() +
+  labs(title = "Tweets per Week (@MCuban)",
+       x = "Week of the Year",
+       y = "Number of Tweets",
+       color = "Year") +
+  scale_x_continuous(breaks = seq(0, 52, 1)) +
+  scale_y_continuous(breaks = seq(0, 160, 25)) +
+  facet_grid(year~.)+
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.minor = element_blank())
+
+```
+
+# Explore: Topics of high tweet weeks
+
+```{r}
+tweets %>% 
+  filter(week == 43,
+         year == 2020)
+```
+
+```{r}
+tweets %>% 
+  filter(week == 45,
+         year == 2019)
+```
+
+# Weekly Tweets, Graph (percentile overlay)
+
+
+```{r, fig.height=6, fig.width=12}
+
+weekly_tweets %>% 
+  ggplot(aes(x = week,
+             y = n,
+             color = as.factor(year))) +
+  geom_point(size = 2) +
+  geom_line(size = 1.25,
+            alpha = 0.5) +
+  theme_bw() +
+  labs(title = "Tweets per Week (@MCuban)",
+       x = "Week of the Year",
+       y = "Number of Tweets",
+       color = "Year") +
+  scale_x_continuous(breaks = seq(0, 52, 1)) +
+  scale_y_continuous(breaks = seq(0, 160, 5)) +
+  geom_hline(yintercept = quantile(weekly_tweets$n, probs = c(0.01, 0.10, 0.25, 0.50, 0.75, 0.90, 0.99)),
+             linetype = c("dotted", "dotted", "dotted", "solid", "dotted", "dotted", "dotted")) +
+  annotate("text", y = quantile(weekly_tweets$n, probs = 0.01) + 3, x = 8, label = "1st percentile", size = 3.5) +
+  annotate("text", y = quantile(weekly_tweets$n, probs = 0.10) + 3, x = 8, label = "10th percentile", size = 3.5) +
+  annotate("text", y = quantile(weekly_tweets$n, probs = 0.25) + 3, x = 8, label = "25th percentile", size = 3.5) +
+  annotate("text", y = quantile(weekly_tweets$n, probs = 0.50) + 3, x = 8, label = "50th percentile (median)", size = 3.5) +
+  annotate("text", y = quantile(weekly_tweets$n, probs = 0.75) + 3, x = 8, label = "75th percentile", size = 3.5) +
+  annotate("text", y = quantile(weekly_tweets$n, probs = 0.90) + 3, x = 8, label = "90th percentile", size = 3.5) +
+  annotate("text", y = quantile(weekly_tweets$n, probs = 0.99) + 3, x = 8, label = "99th percentile", size = 3.5) +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank())
+
+
+```
+
+# histogram (basic)
+
+```{r, fig.height=6, fig.width=12}
+weekly_tweets %>% 
+  ggplot(aes(x = n)) +
+  geom_density() +
+  scale_x_continuous(breaks = seq(0, 160, 5)) +
+  scale_y_continuous(breaks = seq(0, 1, 0.01)) +
+  labs(title = "Distribution of Tweeks per Week (@elonmusk)",
+       x = "Weekly Tweet Count",
+       y = "Proportion of Observations") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+# histogram (percentile overlay)
+
+```{r, fig.height=6, fig.width=12}
+weekly_tweets %>% 
+  ggplot(aes(x = n)) +
+  geom_density(size = 2) +
+  scale_x_continuous(breaks = seq(0, 160, 5)) +
+  scale_y_continuous(breaks = seq(0, 1, 0.001)) +
+  labs(title = "Distribution of Tweeks per Week (@elonmusk)",
+       x = "Weekly Tweet Count",
+       y = "Proportion of Observations") +
+  geom_vline(xintercept = quantile(weekly_tweets$n, probs = c(0.01, 0.10, 0.25, 0.50, 0.75, 0.90, 0.99)),
+             linetype = c("dotted", "dotted", "dotted", "solid", "dotted", "dotted", "dotted")) +
+  annotate("text", x = quantile(weekly_tweets$n, probs = 0.01) + 1, y = 0.004, label = "1st percentile", size = 3.5, angle = 90) +
+  annotate("text", x = quantile(weekly_tweets$n, probs = 0.10) + 1, y = 0.004, label = "10th percentile)", size = 3.5, angle = 90) +
+  annotate("text", x = quantile(weekly_tweets$n, probs = 0.25) + 1, y = 0.004, label = "25th percentile", size = 3.5, angle = 90) +
+  annotate("text", x = quantile(weekly_tweets$n, probs = 0.50) + 1, y = 0.004, label = "50th percentile (median)", size = 3.5, angle = 90) +
+  annotate("text", x = quantile(weekly_tweets$n, probs = 0.75) + 1, y = 0.004, label = "75th percentile", size = 3.5, angle = 90) +
+  annotate("text", x = quantile(weekly_tweets$n, probs = 0.90) + 1, y = 0.004, label = "90th percentile", size = 3.5, angle = 90) +
+  annotate("text", x = quantile(weekly_tweets$n, probs = 0.99) + 1, y = 0.004, label = "99th percentile", size = 3.5, angle = 90) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+# tweets throughout a given week
+
+```{r}
+weekly_moving <-
+tweets %>% 
+  group_by(year, week, day) %>% 
+  count(year, week, day) %>% 
+  arrange(year, week, day) %>% 
+  pivot_wider(names_from = day, values_from = n) %>%
+  mutate_at(vars(Mon , Tue , Wed , Thu , Fri , Sat , Sun), ~replace_na(., 0)) %>% 
+  mutate(sum_mon = sum(Mon, na.rm = TRUE),
+         sum_tues = sum(Mon, Tue, na.rm = TRUE),
+         sum_wed = sum(Mon, Tue, Wed, na.rm = TRUE),
+         sum_thur = sum(Mon, Tue, Wed , Thu, na.rm = TRUE),
+         sum_fri = sum(Mon, Tue, Wed , Thu , Fri, na.rm = TRUE),
+         sum_sat = sum(Mon, Tue, Wed , Thu , Fri , Sat, na.rm = TRUE),
+         sum_sun = sum(Mon , Tue , Wed , Thu , Fri , Sat , Sun, na.rm = TRUE))
+
+weekly_moving
+
+
+```
+
+
+# graph, moving number of tweets throughout the week
+
+```{r, fig.height=6, fig.width=12}
+weekly_moving %>% 
+  select(year, week, contains("sum_")) %>% 
+  pivot_longer(cols = c(sum_mon, sum_tues, sum_wed, sum_thur, sum_fri, sum_sat, sum_sun),
+               names_to = "day",
+               values_to = "running_total") %>% 
+  mutate(week = as.factor(week),
+         day = factor(day, levels = c("sum_mon", "sum_tues", "sum_wed", "sum_thur", "sum_fri", "sum_sat", "sum_sun"))) %>% 
+  ungroup() %>% 
+ggplot(aes(x = day,
+           y = running_total,
+           color = week,
+           group = week)) +
+  geom_point() +
+  geom_line() +
+  scale_y_continuous(breaks = seq(0, 160, 5)) +
+  theme_bw()
+  
+```
+
+# quantiles, moving
+
+```{r}
+print("---mon--")
+quantile(x = weekly_moving$sum_mon, probs = c(0, 0.01, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.99, 1))
+print("---tue--")
+quantile(x = weekly_moving$sum_tues, probs = c(0, 0.01, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.99, 1))
+print("---wed--")
+quantile(x = weekly_moving$sum_wed, probs = c(0, 0.01, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.99, 1))
+print("---thu--")
+quantile(x = weekly_moving$sum_thur, probs = c(0, 0.01, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.99, 1))
+print("---fri--")
+quantile(x = weekly_moving$sum_fri, probs = c(0, 0.01, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.99, 1))
+print("---sat--")
+quantile(x = weekly_moving$sum_sat, probs = c(0, 0.01, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.99, 1))
+print("---sun--")
+quantile(x = weekly_moving$sum_sun, probs = c(0, 0.01, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.99, 1))
+
+```
+# tweets, tweets each day (not cumulative)
+
+```{r, fig.height=6, fig.width=12}
+weekly_moving %>% 
+  select(year, week, Mon , Tue , Wed , Thu , Fri , Sat , Sun) %>% 
+  pivot_longer(cols = c(Mon , Tue , Wed , Thu , Fri , Sat , Sun),
+               names_to = "day",
+               
+               values_to = "daily_total") %>% 
+  mutate(week = as.factor(week),
+         day = factor(day, levels = c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"))) %>% 
+  ungroup() %>% 
+ggplot(aes(x = day,
+           y = daily_total,
+           color = week)) +
+  geom_jitter(width = 0.1,
+              alpha = 0.5) +
+  scale_y_continuous(breaks = seq(0, 160, 5)) +
+  theme_bw()
+  
+```
+
+histogram, with # of tweets each day
+
+# quantiles, day total (non cumulative)
+
+```{r}
+print("---mon--")
+quantile(x = weekly_moving$Mon, probs = c(0, 0.01, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.99, 1))
+print("---tue--")
+quantile(x = weekly_moving$Tue, probs = c(0, 0.01, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.99, 1))
+print("---wed--")
+quantile(x = weekly_moving$Wed, probs = c(0, 0.01, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.99, 1))
+print("---thu--")
+quantile(x = weekly_moving$Thu, probs = c(0, 0.01, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.99, 1))
+print("---fri--")
+quantile(x = weekly_moving$Fri, probs = c(0, 0.01, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.99, 1))
+print("---sat--")
+quantile(x = weekly_moving$Sat, probs = c(0, 0.01, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.99, 1))
+print("---sun--")
+quantile(x = weekly_moving$Sun, probs = c(0, 0.01, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.99, 1))
+
+```
+
+
+
+
+# MISC/END
+
+
