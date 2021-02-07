@@ -1,0 +1,293 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+# --- Settings ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# --- Packages ---
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(lubridate)
+library(binom)
+
+library(zoo)
+
+```
+
+# --- Load Data ---
+
+## 1. load csv
+
+```{r}
+if (FALSE){
+t1 <- Sys.time()
+cov_raw <- read.csv("COVID-19_Case_Surveillance_Public_Use_Data.csv")
+Sys.time() - t1
+}
+```
+## 2. save as Rda
+
+```{r}
+if (FALSE){
+save(cov_raw,
+     file = "cov_raw.Rda")
+}
+```
+
+
+## 3. load RDa
+
+```{r}
+if (TRUE){
+  t1 <- Sys.time()
+  load("cov_raw.Rda")
+  Sys.time() - t1
+}
+```
+
+## 2. view
+
+```{r}
+View(cov_raw)
+```
+
+## 3. types
+
+```{r}
+# examine cols&types
+t(data.frame(lapply(cov_raw, class)))
+```
+
+# --- Analysis ---
+
+## 1. check how many possible diagnoses there are
+
+```{r}
+unique(cov_raw$current_status)
+```
+
+## 2. check what counts as positive case
+
+```{r}
+cov <-
+cov_raw %>% 
+ rename_at(1, ~"date_earliest") %>% 
+ rename(date_report = cdc_report_dt,
+        date_spec = pos_spec_dt) %>% 
+  mutate(date_earliest = as.Date(date_earliest),
+         date_report = as.Date(date_report),
+         date_spec = as.Date(date_spec))
+cov
+```
+
+
+select a few dates, and compare case counts from gov website on each date, to case counts, using the 3 possible date vars
+
+-- gov tracker: https://covid.cdc.gov/covid-data-tracker/#trends_dailytrendscases
+-- few dates:
+--> sep 19, 2020: 42,580
+--> sep 20, 2020: 37,459
+--> nov 14, 2020: 197,622
+--> nov 15, 2020: 101,847
+--> jan 2, 2021: 285,002
+--> jan 3, 2021: 212,496 
+
+```{r}
+cov %>% 
+  filter(date_earliest == "2020-09-19" | date_report == "2020-09-19" | date_spec == "2020-09-19") %>% 
+  pivot_longer(cols = c(date_earliest, date_report, date_spec),
+               names_to = "date_type",
+               values_to = "date") %>% 
+  select(date_type, date, everything()) %>% 
+  group_by(date_type, date, current_status) %>% 
+  filter(date == "2020-09-19") %>% 
+  count() %>% 
+  arrange(desc(date), desc(n))
+
+```
+
+```{r}
+cov %>% 
+  filter(date_earliest == "2020-10-15" | date_report == "2020-10-15" | date_spec == "2020-10-15") %>% 
+  pivot_longer(cols = c(date_earliest, date_report, date_spec),
+               names_to = "date_type",
+               values_to = "date") %>% 
+  select(date_type, date, everything()) %>% 
+  group_by(date_type, date, current_status) %>%
+  filter(date == "2020-10-15") %>%
+  count() %>% 
+  arrange(desc(date), desc(n))
+
+```
+
+```{r}
+cov %>% 
+  filter(date_earliest == "2021-01-03" | date_report == "2021-01-03" | date_spec == "2021-01-03") %>% 
+  pivot_longer(cols = c(date_earliest, date_report, date_spec),
+               names_to = "date_type",
+               values_to = "date") %>% 
+  select(date_type, date, everything()) %>% 
+  group_by(date_type, date, current_status) %>%
+  filter(date == "2021-01-03") %>%
+  count() %>% 
+  arrange(desc(date), desc(n))
+
+```
+
+## 3. shape date
+
+-- count towards daily case count:
+-- date_earliest  + date_report (laboratory confirmed case)
+
+```{r}
+cov_sum <-
+cov %>% 
+  filter(current_status == "Laboratory-confirmed case" ) %>% 
+  # filter(date_earliest >= "2021-01-15" | date_report >= "2021-01-15") %>% 
+  pivot_longer(cols = c(date_earliest, date_report, date_spec),
+               names_to = "date_type",
+               values_to = "date") %>% 
+  filter(date_type == "date_earliest" | date_type == "date_report") %>% 
+  select(date_type, date, everything()) %>% 
+  group_by(date_type, date, current_status) %>%
+  count() %>% 
+  arrange(date, desc(n))
+cov_sum
+
+```
+
+merge together dates
+
+```{r}
+cov_approx <-
+cov_sum %>% 
+  group_by(date) %>%
+  mutate(approx_total = sum(n)) %>% 
+  filter(date_type == "date_earliest") %>%  # doesn't matter either way
+  select(date, approx_total)
+cov_approx
+
+```
+
+
+## 4. save shaped data
+
+```{r}
+save(cov_approx, file = "cov_approx.Rda")
+```
+
+## 5. graph
+
+```{r, fig.width=8, fig.height=5}
+cov_approx %>% 
+  ggplot(aes(x = date,
+             y = approx_total)) +
+  geom_point() +
+  geom_line()
+
+```
+
+# 6. enter 7 day moving average projections
+
+```{r}
+cov_7d <- tibble::tribble(~date, ~num_days, ~avg,
+                          "2021-01-12", 1, 246895,
+                          "2021-01-17", 6, 216701,
+                          "2021-01-21", 10, 188416,
+                          "2021-01-23", 12, 174620,
+                          "2021-01-26", 15, 166496,
+                          "2021-01-30", 19, 149348,
+                          "2021-02-01", 21, 143968,
+                          "2021-02-03", 23, 134523,
+                          "2021-02-05", 25, 124773)
+cov_7d
+```
+
+# 7. get difference in time length between days
+
+```{r}
+# tests/checks
+time_length(x = interval(ymd("2021-01-12"), ymd("2021-01-13")), unit = "days")
+time_length(x = interval(ymd("2021-01-12"), ymd("2021-01-14")), unit = "days")
+time_length(x = interval(ymd("2021-01-12"), ymd("2021-01-15")), unit = "days")
+time_length(x = interval(ymd("2021-01-12"), ymd("2021-01-31")), unit = "days")
+time_length(x = interval(ymd("2021-01-12"), ymd("2021-02-01")), unit = "days")
+time_length(x = interval(ymd("2021-01-12"), ymd("2021-02-02")), unit = "days")
+time_length(x = interval(ymd("2021-01-12"), ymd("2021-02-15")), unit = "days")
+
+# main question
+print("--------")
+time_length(x = interval(ymd("2021-01-12"), ymd("2021-03-15")), unit = "days")
+```
+
+
+# 8. graph: moving average
+
+```{r, fig.width=10, fig.height=7}
+cov_7d %>% 
+  ggplot(aes(x = num_days,
+             y = avg)) +
+  geom_point() +
+  geom_line() +
+  geom_vline(xintercept = 62) +
+  scale_y_continuous(breaks = seq(-100e3, 250e3, 10e3),
+                     limits = c(-100e3, 250e3)) +
+  scale_x_continuous(breaks = seq(1, 70, 5),
+                     limits = c(1,70)) +
+  geom_smooth(method = "lm", fullrange = TRUE) +
+  theme_bw()
+
+```
+
+
+# 9. month window looking back (lowest)
+
+```{r}
+cov_approx$stat_min30 <- zoo::rollapply(data = cov_approx$approx_total, FUN = min, width = 30)
+temp <- zoo::rollapply(data = cov_approx$approx_total, FUN = min, width = 30)
+temp
+
+d <- data.frame(cbind(1:length(temp), temp))
+colnames(d) <- c("day_num", "min_30")
+d
+```
+
+```{r, fig.height=8, fig.width=10}
+d %>% 
+ggplot(aes(x = day_num,
+           y = min_30)) +
+  geom_point() +
+  geom_line() +
+  geom_hline(yintercept = 50e3,
+             color = "red",
+             linetype = "dotted") +
+  scale_y_continuous(breaks = seq(-100e3, 250e3, 10e3)) +
+  scale_x_continuous(breaks = seq(1, 1000, 10)) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+
+
+# --- MISC/END ---
+
+```{r}
+z <- zoo(11:15, as.Date(31:35))
+z
+rollapply(data = z, FUN = min, width = 2)
+```
+
+
+
+
+
+
+
+
