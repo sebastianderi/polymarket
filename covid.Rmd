@@ -249,6 +249,8 @@ cov_7d %>%
 
 # 9. month window looking back (lowest)
 
+## 9.1. with function
+
 ```{r}
 cov_approx$stat_min30 <- zoo::rollapply(data = cov_approx$approx_total, FUN = min, width = 30)
 temp <- zoo::rollapply(data = cov_approx$approx_total, FUN = min, width = 30)
@@ -259,21 +261,79 @@ colnames(d) <- c("day_num", "min_30")
 d
 ```
 
-```{r, fig.height=8, fig.width=10}
-d %>% 
-ggplot(aes(x = day_num,
+## 9.2. do it yourself
+
+```{r}
+# size of window
+window_size <- time_length(x = interval(ymd("2021-02-07"), ymd("2021-03-15")), unit = "days")
+window_size
+
+```
+
+
+```{r}
+# figure out day to start on
+min(cov_approx$date)
+time_length(x = interval(ymd("2020-01-01"), ymd("2020-02-06")), unit = "days") # equals window size (so: 2020-02-06)
+
+# figure out number of days between day to start and last day
+max(cov_approx$date)
+t_length <- time_length(x = interval(ymd("2020-02-06"), ymd("2021-01-16")), unit = "days")
+t_length
+
+cov_approx$min_30 <- 0
+
+# 
+for (i in (window_size+1):(t_length+window_size)){
+  cov_approx[i,]$min_30 <- min(cov_approx[(i-window_size):i, ]$approx_total)
+}
+
+
+cov_approx
+cov_approx[1+36,]
+
+cov_approx[(i-window_size):i, ]
+
+cov_approx[1,]
+
+min(cov_approx[(1+345):(1+36+345),]$approx_total)
+```
+
+
+## 9.3. do it yourself
+
+```{r, fig.height=8, fig.width=12}
+cov_approx %>% 
+  filter(date != "2021-01-16") %>% 
+ggplot(aes(x = date,
            y = min_30)) +
   geom_point() +
   geom_line() +
   geom_hline(yintercept = 50e3,
              color = "red",
-             linetype = "dotted") +
+             #linetype = "dotted",
+             size = 3,
+             alpha = 0.25) +
+  #geom_vline(xintercept = as.numeric(as.Date("2020-11-09"))) +
+  scale_x_date(name = "Date",
+             date_labels = "%d-%b '%y",
+             date_breaks = "1 week",
+             limits = c(as.Date("2019-12-16"), as.Date("2021-03-16"))) +
+  labs(y = "Minimum Daily Cases, over last 36 day ",
+       x = "",
+       title = "Min Daily Cases v. Time") +
   scale_y_continuous(breaks = seq(-100e3, 250e3, 10e3)) +
-  scale_x_continuous(breaks = seq(1, 1000, 10)) +
+  #scale_x_continuous(breaks = seq(1, 1000, 10)) +
   theme_bw() +
-  theme(axis.text.x = element_text(angle = 90))
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.text.x = element_text(angle = 90))
+
 ```
 
+```{r}
+time_length(x = interval(ymd("2021-11-09"), ymd("2021-12-08")), unit = "days")
+
+```
 
 
 # --- MISC/END ---
