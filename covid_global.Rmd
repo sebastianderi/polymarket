@@ -1,0 +1,88 @@
+---
+title: "covid_global"
+output: html_document
+---
+# --- Settings ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# --- Packages ---
+
+```{r}
+library(tidyverse)
+```
+
+# --- Data ---
+
+## 1. load
+
+```{r}
+glob_raw <- read.csv("WHO-COVID-19-global-data.csv")
+```
+
+```{r}
+glob_raw
+```
+
+## 2. reshape
+
+```{r}
+glob <-
+glob_raw %>% 
+  rename(date = ï..Date_reported) %>% 
+  mutate(date = as.Date(date)) %>% 
+  group_by(date) %>% 
+  summarise(total = sum(Cumulative_cases)) %>% 
+  mutate(order = row_number()) %>% 
+  select(date, order, total)
+
+glob
+```
+## 3. save
+
+```{r}
+write.csv(x = glob, file = "glob_cases.csv")
+```
+
+
+# --- Analysis ---
+
+## 1. graph
+
+```{r, fig.width=10, fig.height=5}
+glob %>% 
+ggplot(aes(x = date,
+           y = total)) +
+  geom_line() +
+  theme_bw()
+
+```
+
+## 1. graph (new cases)
+
+```{r}
+glob$new <- 0
+
+glob
+
+glob$new <- c(0,glob[2:420,]$total - glob[1:419,]$total)
+
+glob
+```
+
+
+```{r}
+glob %>% 
+ggplot(aes(x = date,
+           y = new)) +
+  geom_line() +
+  theme_bw()
+
+
+```
+
+
+
+# --- END/MISC ---
