@@ -20,11 +20,18 @@ library(tidyverse)
 
 ```{r}
 glob_raw <- read.csv("WHO-COVID-19-global-data.csv")
+
+vac_raw <- read.csv("owid-covid-data.csv")
 ```
 
 ```{r}
 glob_raw
 ```
+
+```{r}
+vac_raw
+```
+
 
 ## 2. reshape
 
@@ -40,6 +47,25 @@ glob_raw %>%
 
 glob
 ```
+
+## 2. reshape
+
+```{r}
+vac <-
+vac_raw %>% 
+  #rename(date = ï..Date_reported) %>% 
+  mutate(date = as.Date(date)) %>% 
+  filter(date > "2021-02-01") %>% 
+  group_by(date) %>% 
+  summarise(total = sum(new_vaccinations)) %>% 
+  mutate(order = row_number()) %>% 
+  select(date, order, total)
+
+vac
+```
+
+
+
 ## 3. save
 
 ```{r}
@@ -82,6 +108,15 @@ ggplot(aes(x = date,
 
 
 ```
+
+
+# vac analysis
+
+```{r}
+vac %>% 
+  filter(date > "2021-01-01")
+```
+
 
 
 
