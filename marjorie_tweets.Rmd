@@ -114,7 +114,7 @@ print(paste0("111 to 125: ", round(ecdf(weekly_tweets$n)(125) - ecdf(weekly_twee
 print(paste0("126 to 140: ", round(ecdf(weekly_tweets$n)(140) - ecdf(weekly_tweets$n)(126), 2), "%"))
 
 # 140 or more
-print(paste0("1400 or more: ", round(1 - ecdf(weekly_tweets$n)(70), 2), "%"))
+print(paste0("140 or more: ", round(1 - ecdf(weekly_tweets$n)(140), 2), "%"))
 print("-----------------")
 
 
