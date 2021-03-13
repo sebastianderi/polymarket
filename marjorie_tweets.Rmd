@@ -1,0 +1,123 @@
+---
+title: "marjorie_tweets"
+output: html_document
+---
+
+# --- settings ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# --- packages ----
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(readxl)
+
+```
+
+# --- data ---
+
+## load
+
+```{r}
+tweets_raw <- read_excel("jipkin_MTG_Raw.xlsx")
+```
+
+## view
+
+```{r}
+tweets_raw
+```
+
+# Shape Data
+
+See documentation on how exactly a week is calculated
+
+```{r}
+tweets <-
+
+tweets_raw %>% 
+  mutate(row_id = row_number()) %>% 
+  rename("tweet_id" = id) %>%
+  mutate(date = ymd_hms(created_at)) %>% 
+  select(row_id, tweet_id, date, text) %>%
+  arrange(date) %>% 
+  mutate(year = year(date),
+         month = month(date, label = TRUE),
+         week = week(date),
+         day = wday(date, label = TRUE)) %>% 
+  select(date, year, month, week, day, everything())
+  
+tweets
+```
+
+# -- analysis ---
+
+# Tweets Per Week
+
+```{r}
+weekly_tweets <-
+tweets %>% 
+  group_by(year, week) %>% 
+  count(year, week) %>% 
+  filter(week != 1 & week != 11) # note be careful for account for year (here okay bc of limited time frame)
+
+weekly_tweets
+
+```
+
+# Check Time frame
+
+```{r}
+min(tweets$date)
+max(tweets$date)
+```
+# Weekly Tweets, Percentiles
+
+```{r}
+percentile <- 
+quantile(x = weekly_tweets$n,
+         probs = c(0.01, 0.025, 0.05, seq(0.1, 0.9, 0.1), 0.95, 0.975, 0.99))
+percentile
+```
+
+```{r}
+data.frame(percentile)
+
+print(row.names(percentile))
+```
+
+# Weekly Tweet Reverse Percentiles
+
+get probability of falling in various ranges
+
+```{r}
+# historical averages
+print("HISTORICAL AVERAGES")
+
+# 80 or less
+print(paste0("80 or less: ", round(ecdf(weekly_tweets$n)(80), 2), "%"))
+
+# 81 to 95
+print(paste0("81 to 39: ", round(ecdf(weekly_tweets$n)(95) - ecdf(weekly_tweets$n)(81), 2), "%"))
+
+# 96 to 110
+print(paste0("96 to 110: ", round(ecdf(weekly_tweets$n)(110) - ecdf(weekly_tweets$n)(96), 2), "%"))
+
+# 111 to 125
+print(paste0("111 to 125: ", round(ecdf(weekly_tweets$n)(125) - ecdf(weekly_tweets$n)(111), 2), "%"))
+
+# 126 to 140
+print(paste0("126 to 140: ", round(ecdf(weekly_tweets$n)(140) - ecdf(weekly_tweets$n)(126), 2), "%"))
+
+# 140 or more
+print(paste0("1400 or more: ", round(1 - ecdf(weekly_tweets$n)(70), 2), "%"))
+print("-----------------")
+
+
+```
+
+# END/MISC
