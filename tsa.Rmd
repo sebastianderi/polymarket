@@ -1,0 +1,55 @@
+---
+title: "tsa"
+output: html_document
+---
+
+# --- Settings ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# --- Packages ---
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(readxl)
+```
+
+# --- Data ---
+
+# 1. Load
+
+```{r}
+raw <- read.csv("tsa.csv")
+```
+
+# 2. View
+
+```{r}
+View(raw)
+```
+
+# Transform
+
+```{r}
+colnames(raw) <- c("date", "travel")
+View(raw) # check
+```
+
+
+# --- Analysis ---
+
+
+```{r}
+
+```
+
+
+# END/MISC
+
+```{r}
+getwd()
+```
+
