@@ -1,0 +1,38 @@
+---
+title: "graph_stuff"
+output: html_document
+---
+
+# --- Settings ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# --- Packages ---
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(httr)
+```
+
+# Access API/URL/Data
+
+I think these two people are both trying to use R (with httr) to access graphql data.
+
+* https://www.reddit.com/r/Rlanguage/comments/hcaqm1/making_graphql_api_requests_through_r/
+* https://gist.github.com/rentrop/83cb1d8fc8593726a808032e55314019
+
+```{r}
+
+httr::POST(url = "https://thegraph.com/explorer/subgraph/tokenunion/polymarket-matic?selected=playground",
+           config = httr::add_headers(<cookie related stuff>),
+           body = <a character string>,
+           encode = "json")
+
+
+```
+
+
+# END/MISC
